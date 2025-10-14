@@ -33,12 +33,19 @@
                 <h1 class="text-3xl font-bold">Painel de Gestão de Processos</h1>
                 <p class="text-indigo-200 mt-1">Administração das pendências de clientes "FECHADO".</p>
             </div>
+            <div>
+                <button id="refresh-btn" class="p-2 rounded-full hover:bg-indigo-500 transition-colors duration-200" title="Atualizar Painel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5m11 2a9 9 0 11-2.066-5.856" />
+                    </svg>
+                </button>
+            </div>
         </div>
     </header>
 
     <div class="container mx-auto max-w-5xl px-4 md:px-8 -mt-16">
         
-        <div id="controls" class="bg-white rounded-lg shadow-xl p-4 md:p-6 mb-6 md:flex md:items-center md:justify-between">
+        <div id="controls" class="bg-white rounded-lg shadow-xl p-4 md:p-6 mb-6 md:flex md:items-center md:justify-between flex-wrap">
             <div id="stats-section" class="mb-4 md:mb-0">
                 <span class="text-sm font-medium text-gray-500">Progresso Geral</span>
                 <div class="flex items-center mt-1">
@@ -48,10 +55,17 @@
                     <span id="stats-summary" class="text-base font-semibold text-indigo-600">0/0 (0%)</span>
                 </div>
             </div>
-            <div id="filters" class="flex space-x-2">
-                <button data-filter="all" class="filter-btn filter-btn-active px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Todos</button>
-                <button data-filter="pending" class="filter-btn px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Pendentes</button>
-                <button data-filter="done" class="filter-btn px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Concluídos</button>
+            <div class="flex items-center space-x-4">
+                <div>
+                    <select id="month-filter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm">
+                        <option value="all">Todos os Meses</option>
+                    </select>
+                </div>
+                <div id="filters" class="flex space-x-2">
+                    <button data-filter="all" class="filter-btn filter-btn-active px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Todos</button>
+                    <button data-filter="pending" class="filter-btn px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Pendentes</button>
+                    <button data-filter="done" class="filter-btn px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Concluídos</button>
+                </div>
             </div>
         </div>
 
@@ -108,7 +122,7 @@
             </div>
         </div>
     </div>
-
+    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore.js";
@@ -139,38 +153,63 @@
         let currentEditingTaskId = null;
         let allTasks = [];
         let currentFilter = 'all';
+        let currentMonthFilter = 'all';
+        let unsubscribe; 
 
         async function main() {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            const auth = getAuth(app);
-            await signInAnonymously(auth);
-            listenForTasks();
+             try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                const auth = getAuth(app);
+                await signInAnonymously(auth);
+                listenForTasks();
+            } catch(e) {
+                console.error("Erro na inicialização:", e);
+                document.getElementById('loading-state').innerHTML = `<p class="text-red-500">Erro ao conectar com a base de dados.</p>`;
+            }
         }
-
-        function isTaskDone(task) {
-            if (!task.processes || task.processes.length === 0) return false;
-            return task.processes.every(p => {
-                const processData = processTypes[p.type];
-                if (!processData) return true; // Processo desconhecido, ignora
-                return p.docsChecked && p.docsChecked.length === processData.docs.length && p.docsChecked.every(Boolean);
-            });
-        }
-
+        
         function listenForTasks() {
+            if (unsubscribe) {
+                unsubscribe();
+            }
             const tasksCollectionPath = `artifacts/${appId}/public/data/tasks`;
             const q = query(collection(db, tasksCollectionPath), orderBy("createdAt", "desc"));
             
-            onSnapshot(q, (querySnapshot) => {
+            unsubscribe = onSnapshot(q, (querySnapshot) => {
                 document.getElementById('loading-state').classList.add('hidden');
                 allTasks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                populateMonthFilter();
                 updateStatisticsAndRender();
+            }, (error) => {
+                 console.error("Erro ao buscar tarefas: ", error);
+                 document.getElementById('task-list').innerHTML = `<div class="text-center py-12 bg-white rounded-lg shadow-xl"><p class="text-red-500">Erro ao carregar as tarefas. Verifique as regras de segurança do Firestore.</p></div>`;
             });
         }
         
+        function populateMonthFilter() {
+            const monthFilterEl = document.getElementById('month-filter');
+            const uniqueMonths = [...new Set(allTasks.map(task => task.month).filter(Boolean))];
+            const selectedValue = monthFilterEl.value;
+            while (monthFilterEl.options.length > 1) {
+                monthFilterEl.remove(1);
+            }
+            uniqueMonths.sort().forEach(month => {
+                const option = document.createElement('option');
+                option.value = month;
+                option.textContent = month.charAt(0).toUpperCase() + month.slice(1).toLowerCase();
+                monthFilterEl.appendChild(option);
+            });
+            monthFilterEl.value = selectedValue;
+        }
+
         function updateStatisticsAndRender() {
-            const totalTasks = allTasks.length;
-            const completedTasks = allTasks.filter(isTaskDone).length;
+            const tasksForStats = currentMonthFilter === 'all' 
+                ? allTasks 
+                : allTasks.filter(task => task.month === currentMonthFilter);
+
+            const totalTasks = tasksForStats.length;
+            const completedTasks = tasksForStats.filter(isTaskDone).length;
             
             const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
             document.getElementById('stats-summary').textContent = `${completedTasks}/${totalTasks} (${percentage}%)`;
@@ -183,18 +222,27 @@
             const taskListEl = document.getElementById('task-list');
             taskListEl.innerHTML = '';
             
-            const filteredTasks = allTasks.filter(task => {
+            let filteredTasks = allTasks;
+            if (currentMonthFilter !== 'all') {
+                filteredTasks = filteredTasks.filter(task => task.month === currentMonthFilter);
+            }
+            filteredTasks = filteredTasks.filter(task => {
                 if (currentFilter === 'all') return true;
                 if (currentFilter === 'pending') return !isTaskDone(task);
                 if (currentFilter === 'done') return isTaskDone(task);
             });
             
-            if (filteredTasks.length > 0) {
+            if (filteredTasks.length === 0) {
+                 let message = 'Nenhuma tarefa encontrada para os filtros selecionados.';
+                 taskListEl.innerHTML = `<div class="text-center py-12 bg-white rounded-lg shadow-xl"><p class="text-gray-700 font-medium">${message}</p></div>`;
+            } else {
               filteredTasks.forEach(task => {
                   taskListEl.appendChild(createTaskElement(task));
               });
             }
         }
+        
+        function isTaskDone(task) { if (!task.processes || task.processes.length === 0) return false; return task.processes.every(p => { const processData = processTypes[p.type]; if (!processData) return true; return p.docsChecked && p.docsChecked.length === processData.docs.length && p.docsChecked.every(Boolean); }); }
         
         function createTaskElement(task) {
             const div = document.createElement('div');
@@ -269,35 +317,25 @@
         async function removeProcessFromTask(taskId, procType) {
             const task = allTasks.find(t => t.id === taskId);
             const updatedProcesses = (task.processes || []).filter(p => p.type !== procType);
-        
             const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, taskId);
-            await updateDoc(taskRef, {
-                processes: updatedProcesses
-            });
+            await updateDoc(taskRef, { processes: updatedProcesses });
         }
 
         function openEditModal(task) {
             currentEditingTaskId = task.id;
-            document.getElementById('modal-lead-name').textContent = task.leadName;
-            document.getElementById('modal-client-name').value = task.clientName || '';
-            document.getElementById('modal-comments').value = task.comments || '';
-            document.getElementById('edit-modal').classList.remove('hidden');
+            const modalLeadName = document.getElementById('modal-lead-name');
+            const modalClientName = document.getElementById('modal-client-name');
+            const modalComments = document.getElementById('modal-comments');
+            if(modalLeadName) modalLeadName.textContent = task.leadName;
+            if(modalClientName) modalClientName.value = task.clientName || '';
+            if(modalComments) modalComments.value = task.comments || '';
+            document.getElementById('edit-modal')?.classList.remove('hidden');
         }
-
-        document.getElementById('modal-cancel').addEventListener('click', () => document.getElementById('edit-modal').classList.add('hidden'));
-        document.getElementById('modal-save').addEventListener('click', async () => {
-            if (!currentEditingTaskId) return;
-            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, currentEditingTaskId);
-            await updateDoc(taskRef, {
-                clientName: document.getElementById('modal-client-name').value,
-                comments: document.getElementById('modal-comments').value,
-            });
-            document.getElementById('edit-modal').classList.add('hidden');
-        });
-
+        
         function openProcessSelectModal(taskId) {
             currentEditingTaskId = taskId;
             const processGrid = document.getElementById('process-grid');
+            if(!processGrid) return;
             processGrid.innerHTML = '';
             Object.keys(processTypes).forEach(key => {
                 const process = processTypes[key];
@@ -307,12 +345,9 @@
                 card.onclick = () => addProcessToTask(key);
                 processGrid.appendChild(card);
             });
-            document.getElementById('process-select-modal').classList.remove('hidden');
+            document.getElementById('process-select-modal')?.classList.remove('hidden');
         }
         
-        document.getElementById('process-select-close').addEventListener('click', () => document.getElementById('process-select-modal').classList.add('hidden'));
-        document.getElementById('congrats-close').addEventListener('click', () => document.getElementById('congrats-modal').classList.add('hidden'));
-
         async function addProcessToTask(processType) {
             const task = allTasks.find(t => t.id === currentEditingTaskId);
             const existingProcesses = task.processes || [];
@@ -320,17 +355,10 @@
                 alert('Este processo já foi adicionado.');
                 return;
             }
-            
-            const newProcess = {
-                type: processType,
-                docsChecked: Array(processTypes[processType].docs.length).fill(false)
-            };
-
+            const newProcess = { type: processType, docsChecked: Array(processTypes[processType].docs.length).fill(false) };
             const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, currentEditingTaskId);
-            await updateDoc(taskRef, {
-                processes: [...existingProcesses, newProcess]
-            });
-            document.getElementById('process-select-modal').classList.add('hidden');
+            await updateDoc(taskRef, { processes: [...existingProcesses, newProcess] });
+            document.getElementById('process-select-modal')?.classList.add('hidden');
         }
 
         async function updateChecklist(checkbox, task) {
@@ -338,12 +366,8 @@
             const { taskId, procType, docIndex } = checkbox.dataset;
             const process = task.processes.find(p => p.type === procType);
             process.docsChecked[docIndex] = checkbox.checked;
-
             const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, taskId);
-            await updateDoc(taskRef, {
-                processes: task.processes
-            });
-
+            await updateDoc(taskRef, { processes: task.processes });
             const isTaskDoneNow = isTaskDone(task);
             if (!wasTaskDoneBefore && isTaskDoneNow) {
                 showCongrats();
@@ -352,29 +376,26 @@
         
         function showCongrats() {
             const congratsModal = document.getElementById('congrats-modal');
-            congratsModal.classList.remove('hidden');
-            
-            const myConfetti = confetti.create(document.getElementById('confetti-canvas'), {
-                resize: true,
-                useWorker: true
-            });
-            myConfetti({
-                particleCount: 150,
-                spread: 180,
-                origin: { y: 0.6 }
-            });
+            if(congratsModal) congratsModal.classList.remove('hidden');
+            const confettiCanvas = document.getElementById('confetti-canvas');
+            if (confetti && confettiCanvas) {
+                const myConfetti = confetti.create(confettiCanvas, { resize: true, useWorker: true });
+                myConfetti({ particleCount: 150, spread: 180, origin: { y: 0.6 } });
+            }
         }
         
-        document.getElementById('filters').addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                currentFilter = e.target.dataset.filter;
-                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('filter-btn-active'));
-                e.target.classList.add('filter-btn-active');
-                renderTasks();
-            }
-        });
-
+        // --- Event Listeners ---
+        document.getElementById('modal-cancel')?.addEventListener('click', () => document.getElementById('edit-modal')?.classList.add('hidden'));
+        document.getElementById('modal-save')?.addEventListener('click', async () => { if (!currentEditingTaskId) return; const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, currentEditingTaskId); await updateDoc(taskRef, { clientName: document.getElementById('modal-client-name').value, comments: document.getElementById('modal-comments').value, }); document.getElementById('edit-modal')?.classList.add('hidden'); });
+        document.getElementById('process-select-close')?.addEventListener('click', () => document.getElementById('process-select-modal')?.classList.add('hidden'));
+        document.getElementById('congrats-close')?.addEventListener('click', () => document.getElementById('congrats-modal')?.classList.add('hidden'));
+        document.getElementById('filters')?.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { currentFilter = e.target.dataset.filter; document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('filter-btn-active')); e.target.classList.add('filter-btn-active'); updateStatisticsAndRender(); } });
+        document.getElementById('month-filter')?.addEventListener('change', (e) => { currentMonthFilter = e.target.value; updateStatisticsAndRender(); });
+        document.getElementById('refresh-btn')?.addEventListener('click', () => listenForTasks());
+        
         main();
+
     </script>
 </body>
 </html>
+
