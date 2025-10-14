@@ -3,399 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Gestão de Processos</title>
+    <title>Painel de Tarefas Pós-Venda</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); }
-        .process-card { transition: all 0.2s ease-in-out; }
-        .process-card:hover { transform: scale(1.03); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-        .checklist-item { display: flex; align-items: center; }
-        .checklist-item input:checked + label { text-decoration: line-through; color: #6b7280; }
-        .filter-btn-active { background-color: #4f46e5 !important; color: white !important; }
+        .task-card { transition: all 0.3s ease; }
+        .task-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .filter-btn-active { background-color: #4f46e5 !important; color: white !important; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); }
         .progress-bar { transition: width 0.5s ease-in-out; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .status-pending { background-color: #f97316; }
-        .status-done { background-color: #22c55e; }
-        .interactive-btn { transition: all 0.2s ease-in-out; }
-        .interactive-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; pointer-events: none; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
-    <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
 
     <header class="bg-indigo-600 text-white pt-8 pb-24 shadow-lg">
         <div class="container mx-auto px-4 md:px-8 max-w-5xl flex justify-between items-center">
             <div>
-                <h1 class="text-3xl font-bold">Painel de Gestão de Processos</h1>
+                <h1 class="text-3xl font-bold">Painel de Tarefas Pós-Venda</h1>
                 <p class="text-indigo-200 mt-1">Administração das pendências de clientes "FECHADO".</p>
             </div>
-            <div>
-                <button id="refresh-btn" class="p-2 rounded-full hover:bg-indigo-500 transition-colors duration-200" title="Atualizar Painel">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5m11 2a9 9 0 11-2.066-5.856" />
-                    </svg>
-                </button>
-            </div>
+            <button id="refresh-button" class="p-2 rounded-full hover:bg-indigo-500 transition-colors duration-300" title="Atualizar Tarefas">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            </button>
         </div>
     </header>
 
     <div class="container mx-auto max-w-5xl px-4 md:px-8 -mt-16">
-        
-        <div id="controls" class="bg-white rounded-lg shadow-xl p-4 md:p-6 mb-6 md:flex md:items-center md:justify-between flex-wrap">
-            <div id="stats-section" class="mb-4 md:mb-0">
-                <span class="text-sm font-medium text-gray-500">Progresso Geral</span>
-                <div class="flex items-center mt-1">
-                    <div class="w-40 sm:w-48 bg-gray-200 rounded-full h-2.5 mr-3">
-                        <div id="progress-bar" class="progress-bar bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
-                    </div>
-                    <span id="stats-summary" class="text-base font-semibold text-indigo-600">0/0 (0%)</span>
-                </div>
-            </div>
-            <div class="flex items-center space-x-4">
-                <div>
-                    <select id="month-filter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm">
-                        <option value="all">Todos os Meses</option>
-                    </select>
-                </div>
-                <div id="filters" class="flex space-x-2">
-                    <button data-filter="all" class="filter-btn filter-btn-active px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Todos</button>
-                    <button data-filter="pending" class="filter-btn px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Pendentes</button>
-                    <button data-filter="done" class="filter-btn px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Concluídos</button>
+        <div class="bg-white rounded-lg shadow-xl p-4 md:p-6 mb-6">
+            <div id="stats-section">
+                <span class="text-sm font-medium text-gray-500">Total de Pendências</span>
+                <div class="mt-1">
+                    <span id="stats-summary" class="text-2xl font-bold text-indigo-600">0</span>
                 </div>
             </div>
         </div>
-
+        
         <main id="task-list" class="space-y-4">
             <!-- As tarefas serão carregadas aqui -->
         </main>
-        <div id="loading-state" class="text-center py-12 bg-white rounded-lg shadow-xl"><p>Carregando...</p></div>
-    </div>
 
-    <!-- Modal de Parabéns -->
-    <div id="congrats-modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm m-4 text-center p-8">
-            <h3 class="text-2xl font-bold text-green-500">Parabéns!</h3>
-            <p class="text-gray-600 mt-2">Processo do cliente concluído com sucesso!</p>
-            <button id="congrats-close" class="mt-6 interactive-btn w-full rounded-md border border-transparent bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">Fechar</button>
+        <div id="empty-state" class="hidden text-center py-12 bg-white rounded-lg shadow-xl">
+            <h3 id="empty-state-title" class="mt-4 text-xl font-semibold text-gray-800"></h3>
+            <p id="empty-state-subtitle" class="text-gray-500 mt-2"></p>
         </div>
-    </div>
 
-    <!-- Modal para Editar Tarefa Principal -->
-    <div id="edit-modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg m-4">
-            <div class="p-6">
-                <h3 class="text-xl font-semibold text-gray-900">Editar Pendência</h3>
-                <p class="text-gray-600 mt-1">Contato: <span id="modal-lead-name" class="font-medium"></span></p>
-                <div class="mt-6 space-y-4">
-                    <div>
-                        <label for="modal-client-name" class="block text-sm font-medium text-gray-700">Nome do Cliente</label>
-                        <input type="text" id="modal-client-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                    </div>
-                    <div>
-                        <label for="modal-comments" class="block text-sm font-medium text-gray-700">Comentários Gerais</label>
-                        <textarea id="modal-comments" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
-                 <button type="button" id="modal-cancel" class="rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
-                 <button type="button" id="modal-save" class="interactive-btn rounded-md border border-transparent bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">Salvar</button>
-            </div>
+        <div id="loading-state" class="text-center py-12 bg-white rounded-lg shadow-xl">
+            <p>Carregando tarefas da planilha...</p>
         </div>
-    </div>
-
-    <!-- Modal para Selecionar Processo -->
-    <div id="process-select-modal" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl m-4">
-            <div class="p-6">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-semibold text-gray-900">Selecione o Tipo de Processo</h3>
-                    <button id="process-select-close" type="button" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
-                </div>
-                <div id="process-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                    <!-- Cards de processo serão inseridos aqui -->
-                </div>
-            </div>
+        
+        <div id="error-state" class="hidden text-center bg-red-50 p-8 rounded-lg">
+             <h3 class="text-xl font-semibold text-red-800">Erro ao carregar as tarefas.</h3>
+             <p class="text-red-600 mt-2">Verifique se o link do App Script está correto e implantado para "Qualquer pessoa".</p>
         </div>
     </div>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
+    <script>
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbywnKpGYzXlm1eBbVMySkbSnswGScmJ-AnIj1VaTnCojhaWMYD7_wSHq2gFTak0iZSI/exec';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyC1mGiPh3yFeCGuOud-nC17K7mas8tJuMs",
-            authDomain: "meu-painel-de-tarefas-d1926.firebaseapp.com",
-            projectId: "meu-painel-de-tarefas-d1926",
-            storageBucket: "meu-painel-de-tarefas-d1926.firebasestorage.app",
-            messagingSenderId: "357152933295",
-            appId: "1:357152933295:web:7d447e8b142e25b1c6db5a"
-        };
-        const appId = 'default-app-id';
-
-        const processTypes = {
-            'seguro-vida': { name: 'Seguro de Vida', docs: ['Documento Pessoal', 'Comprovante de Residência', 'B.O./Relato/CAT', 'Prontuário Médico', 'Raio-X', 'Apólice', 'Dados Bancários', 'RTM', 'Folhas de Pagamento', 'Ficha de Empregado', 'Extrato FGTS', 'Prolabore', 'Contrato Social'] },
-            'auxilio-acidente': { name: 'Auxílio-Acidente', docs: ['Documento Pessoal', 'Comprovante de Residência', 'CTPS Completa', 'Senha GOV.BR', 'B.O./CAT/Declaração', 'Prontuários', 'Raio-X', 'RTM'] },
-            'auxilio-maternidade': { name: 'Auxílio-Maternidade', docs: ['Documento Pessoal', 'Comprovante de Residência', 'CTPS Completa', 'Senha GOV.BR', 'Certidão de Nascimento'] },
-            'bpc-loas': { name: 'BPC/LOAS', docs: ['Documento Pessoal (todos da casa)', 'Comprovante de Renda (todos)', 'Comprovante de Residência', 'Senha GOV.BR', 'Laudos Médicos', 'Fotos da Casa', 'Comprovante de Gastos'] },
-            'pensao-morte': { name: 'Pensão por Morte', docs: ['Documento Pessoal (falecido e requerente)', 'Certidão de Casamento/Nascimento', 'CTPS do Falecido', 'Senha GOV.BR', 'Certidão de Óbito', 'Comprovantes de Convivência'] },
-            'auxilio-doenca': { name: 'Auxílio-Doença', docs: ['Documento Pessoal', 'Atestados Médicos', 'Senha GOV.BR', 'CTPS Completa', 'CAT (se acidente trabalho)', 'Declaração Último Dia Trabalhado'] },
-            'seguro-terceiro': { name: 'Seguro Terceiro', docs: ['Documento Pessoal', 'Comprovante de Residência', 'Boletim de Ocorrência', 'RTM', 'Prontuário Médico', 'Raio-X', 'Dados do Seguro do Terceiro', 'Recibos Danos Materiais', 'Fotos do Acidente'] },
-            'acao-acidente-transito': { name: 'Ação Acidente de Trânsito', docs: ['Documento Pessoal', 'Comprovante de Residência', 'Boletim de Ocorrência', 'Prontuário Médico', 'Raio-X', 'Recibos Danos Materiais', 'Comprovante de Renda Judicial', 'Extratos Bancários (autônomo)'] }
-        };
-
-        let db;
-        let currentEditingTaskId = null;
-        let allTasks = [];
-        let currentFilter = 'all';
-        let currentMonthFilter = 'all';
-        let unsubscribe; 
-
-        async function main() {
-             try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                const auth = getAuth(app);
-                await signInAnonymously(auth);
-                listenForTasks();
-            } catch(e) {
-                console.error("Erro na inicialização:", e);
-                document.getElementById('loading-state').innerHTML = `<p class="text-red-500">Erro ao conectar com a base de dados.</p>`;
-            }
-        }
+        const taskListEl = document.getElementById('task-list');
+        const emptyStateEl = document.getElementById('empty-state');
+        const loadingStateEl = document.getElementById('loading-state');
+        const errorStateEl = document.getElementById('error-state');
+        const refreshButton = document.getElementById('refresh-button');
+        const emptyStateTitleEl = document.getElementById('empty-state-title');
+        const emptyStateSubtitleEl = document.getElementById('empty-state-subtitle');
+        const statsSummaryEl = document.getElementById('stats-summary');
         
-        function listenForTasks() {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-            const tasksCollectionPath = `artifacts/${appId}/public/data/tasks`;
-            const q = query(collection(db, tasksCollectionPath), orderBy("createdAt", "desc"));
-            
-            unsubscribe = onSnapshot(q, (querySnapshot) => {
-                document.getElementById('loading-state').classList.add('hidden');
-                allTasks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                populateMonthFilter();
-                updateStatisticsAndRender();
-            }, (error) => {
-                 console.error("Erro ao buscar tarefas: ", error);
-                 document.getElementById('task-list').innerHTML = `<div class="text-center py-12 bg-white rounded-lg shadow-xl"><p class="text-red-500">Erro ao carregar as tarefas. Verifique as regras de segurança do Firestore.</p></div>`;
-            });
-        }
-        
-        function populateMonthFilter() {
-            const monthFilterEl = document.getElementById('month-filter');
-            const uniqueMonths = [...new Set(allTasks.map(task => task.month).filter(Boolean))];
-            const selectedValue = monthFilterEl.value;
-            while (monthFilterEl.options.length > 1) {
-                monthFilterEl.remove(1);
-            }
-            uniqueMonths.sort().forEach(month => {
-                const option = document.createElement('option');
-                option.value = month;
-                option.textContent = month.charAt(0).toUpperCase() + month.slice(1).toLowerCase();
-                monthFilterEl.appendChild(option);
-            });
-            monthFilterEl.value = selectedValue;
-        }
-
-        function updateStatisticsAndRender() {
-            const tasksForStats = currentMonthFilter === 'all' 
-                ? allTasks 
-                : allTasks.filter(task => task.month === currentMonthFilter);
-
-            const totalTasks = tasksForStats.length;
-            const completedTasks = tasksForStats.filter(isTaskDone).length;
-            
-            const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-            document.getElementById('stats-summary').textContent = `${completedTasks}/${totalTasks} (${percentage}%)`;
-            document.getElementById('progress-bar').style.width = `${percentage}%`;
-
-            renderTasks();
-        }
-
-        function renderTasks() {
-            const taskListEl = document.getElementById('task-list');
+        async function fetchTasks() {
+            loadingStateEl.classList.remove('hidden');
+            errorStateEl.classList.add('hidden');
+            emptyStateEl.classList.add('hidden');
             taskListEl.innerHTML = '';
             
-            let filteredTasks = allTasks;
-            if (currentMonthFilter !== 'all') {
-                filteredTasks = filteredTasks.filter(task => task.month === currentMonthFilter);
-            }
-            filteredTasks = filteredTasks.filter(task => {
-                if (currentFilter === 'all') return true;
-                if (currentFilter === 'pending') return !isTaskDone(task);
-                if (currentFilter === 'done') return isTaskDone(task);
-            });
-            
-            if (filteredTasks.length === 0) {
-                 let message = 'Nenhuma tarefa encontrada para os filtros selecionados.';
-                 taskListEl.innerHTML = `<div class="text-center py-12 bg-white rounded-lg shadow-xl"><p class="text-gray-700 font-medium">${message}</p></div>`;
-            } else {
-              filteredTasks.forEach(task => {
-                  taskListEl.appendChild(createTaskElement(task));
-              });
+            try {
+                const response = await fetch(WEB_APP_URL);
+                if (!response.ok) throw new Error('Erro na resposta da rede.');
+                
+                const tasks = await response.json();
+                
+                loadingStateEl.classList.add('hidden');
+                statsSummaryEl.textContent = tasks.length;
+                
+                if (tasks.length === 0) {
+                    emptyStateEl.classList.remove('hidden');
+                    taskListEl.classList.add('hidden');
+                    emptyStateTitleEl.textContent = 'Nenhuma pendência encontrada';
+                    emptyStateSubtitleEl.textContent = 'Não há leads com status "FECHADO" em Outubro ou Setembro.';
+                } else {
+                    taskListEl.classList.remove('hidden');
+                    tasks.forEach(task => {
+                        const taskEl = createTaskElement(task);
+                        taskListEl.appendChild(taskEl);
+                    });
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar tarefas:", error);
+                loadingStateEl.classList.add('hidden');
+                errorStateEl.classList.remove('hidden');
             }
         }
-        
-        function isTaskDone(task) { if (!task.processes || task.processes.length === 0) return false; return task.processes.every(p => { const processData = processTypes[p.type]; if (!processData) return true; return p.docsChecked && p.docsChecked.length === processData.docs.length && p.docsChecked.every(Boolean); }); }
+
+        refreshButton.addEventListener('click', fetchTasks);
         
         function createTaskElement(task) {
             const div = document.createElement('div');
-            const taskIsDone = isTaskDone(task);
-            div.className = `bg-white p-5 rounded-lg shadow-md border ${taskIsDone ? 'opacity-70' : ''}`;
+            div.className = `task-card bg-white p-5 rounded-lg shadow-sm border flex items-start space-x-4`;
             
-            const processesHTML = (task.processes || []).map(proc => {
-                const processData = processTypes[proc.type];
-                if (!processData) return '';
-                
-                const documentsHTML = processData.docs.map((doc, index) => `
-                    <div class="checklist-item mt-2">
-                        <input type="checkbox" id="doc-${task.id}-${proc.type}-${index}" data-task-id="${task.id}" data-proc-type="${proc.type}" data-doc-index="${index}" ${proc.docsChecked && proc.docsChecked[index] ? 'checked' : ''} class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        <label for="doc-${task.id}-${proc.type}-${index}" class="ml-2 block text-sm text-gray-900">${doc}</label>
-                    </div>
-                `).join('');
-                
-                return `
-                    <div class="mt-4 border-t pt-4">
-                        <div class="flex justify-between items-center">
-                            <h4 class="font-semibold text-indigo-700">${processData.name}</h4>
-                            <button data-action="remove-process" data-proc-type="${proc.type}" class="p-1 rounded-full hover:bg-red-100 text-red-500" title="Remover Processo">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-                            </button>
-                        </div>
-                        <div class="mt-2 text-sm">${documentsHTML}</div>
-                    </div>
-                `;
-            }).join('');
-
             div.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div class="flex items-center">
-                        <div class="status-dot ${taskIsDone ? 'status-done' : 'status-pending'} mr-4"></div>
-                        <div>
-                            <p class="font-bold text-lg text-gray-800">${task.clientName || 'Cliente não definido'}</p>
-                            <p class="text-sm text-gray-500">${task.leadName}</p>
-                            <p class="text-sm text-gray-600 mt-2"><strong>Comentários:</strong> ${task.comments || 'Nenhum'}</p>
-                        </div>
-                    </div>
-                    <div>
-                        <button data-action="edit-main" class="p-2 rounded-full hover:bg-gray-200" title="Editar pendência"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg></button>
-                    </div>
-                </div>
-                <div id="processes-container-${task.id}">${processesHTML}</div>
-                <div class="mt-4">
-                    <button data-action="add-process" class="interactive-btn w-full text-center bg-gray-100 hover:bg-gray-200 text-indigo-600 font-semibold py-2 px-4 rounded-lg text-sm">+ Adicionar Processo</button>
+                <span class="mt-1.5 flex-shrink-0 w-3 h-3 bg-yellow-500 rounded-full" title="Pendente"></span>
+                <div class="flex-grow">
+                    <p class="font-bold text-lg text-gray-800">${task.leadName}</p>
+                    <p class="text-sm text-gray-500">ID da Linha na Planilha: ${task.id}</p>
                 </div>
             `;
-
-            div.addEventListener('click', e => handleTaskClick(e, task));
             return div;
         }
-
-        function handleTaskClick(e, task) {
-            const button = e.target.closest('button');
-            if (button) {
-                const action = button.dataset.action;
-                if (action === 'edit-main') {
-                    openEditModal(task);
-                } else if (action === 'add-process') {
-                    openProcessSelectModal(task.id);
-                } else if (action === 'remove-process') {
-                    const procType = button.dataset.procType;
-                    removeProcessFromTask(task.id, procType);
-                }
-            } else if (e.target.type === 'checkbox') {
-                updateChecklist(e.target, task);
-            }
-        }
-
-        async function removeProcessFromTask(taskId, procType) {
-            const task = allTasks.find(t => t.id === taskId);
-            const updatedProcesses = (task.processes || []).filter(p => p.type !== procType);
-            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, taskId);
-            await updateDoc(taskRef, { processes: updatedProcesses });
-        }
-
-        function openEditModal(task) {
-            currentEditingTaskId = task.id;
-            const modalLeadName = document.getElementById('modal-lead-name');
-            const modalClientName = document.getElementById('modal-client-name');
-            const modalComments = document.getElementById('modal-comments');
-            if(modalLeadName) modalLeadName.textContent = task.leadName;
-            if(modalClientName) modalClientName.value = task.clientName || '';
-            if(modalComments) modalComments.value = task.comments || '';
-            document.getElementById('edit-modal')?.classList.remove('hidden');
-        }
         
-        function openProcessSelectModal(taskId) {
-            currentEditingTaskId = taskId;
-            const processGrid = document.getElementById('process-grid');
-            if(!processGrid) return;
-            processGrid.innerHTML = '';
-            Object.keys(processTypes).forEach(key => {
-                const process = processTypes[key];
-                const card = document.createElement('div');
-                card.className = 'process-card border rounded-lg p-4 text-center cursor-pointer hover:border-indigo-500';
-                card.innerHTML = `<p class="font-semibold">${process.name}</p>`;
-                card.onclick = () => addProcessToTask(key);
-                processGrid.appendChild(card);
-            });
-            document.getElementById('process-select-modal')?.classList.remove('hidden');
-        }
-        
-        async function addProcessToTask(processType) {
-            const task = allTasks.find(t => t.id === currentEditingTaskId);
-            const existingProcesses = task.processes || [];
-            if (existingProcesses.some(p => p.type === processType)) {
-                alert('Este processo já foi adicionado.');
-                return;
-            }
-            const newProcess = { type: processType, docsChecked: Array(processTypes[processType].docs.length).fill(false) };
-            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, currentEditingTaskId);
-            await updateDoc(taskRef, { processes: [...existingProcesses, newProcess] });
-            document.getElementById('process-select-modal')?.classList.add('hidden');
-        }
-
-        async function updateChecklist(checkbox, task) {
-            const wasTaskDoneBefore = isTaskDone(task);
-            const { taskId, procType, docIndex } = checkbox.dataset;
-            const process = task.processes.find(p => p.type === procType);
-            process.docsChecked[docIndex] = checkbox.checked;
-            const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, taskId);
-            await updateDoc(taskRef, { processes: task.processes });
-            const isTaskDoneNow = isTaskDone(task);
-            if (!wasTaskDoneBefore && isTaskDoneNow) {
-                showCongrats();
-            }
-        }
-        
-        function showCongrats() {
-            const congratsModal = document.getElementById('congrats-modal');
-            if(congratsModal) congratsModal.classList.remove('hidden');
-            const confettiCanvas = document.getElementById('confetti-canvas');
-            if (confetti && confettiCanvas) {
-                const myConfetti = confetti.create(confettiCanvas, { resize: true, useWorker: true });
-                myConfetti({ particleCount: 150, spread: 180, origin: { y: 0.6 } });
-            }
-        }
-        
-        // --- Event Listeners ---
-        document.getElementById('modal-cancel')?.addEventListener('click', () => document.getElementById('edit-modal')?.classList.add('hidden'));
-        document.getElementById('modal-save')?.addEventListener('click', async () => { if (!currentEditingTaskId) return; const taskRef = doc(db, `artifacts/${appId}/public/data/tasks`, currentEditingTaskId); await updateDoc(taskRef, { clientName: document.getElementById('modal-client-name').value, comments: document.getElementById('modal-comments').value, }); document.getElementById('edit-modal')?.classList.add('hidden'); });
-        document.getElementById('process-select-close')?.addEventListener('click', () => document.getElementById('process-select-modal')?.classList.add('hidden'));
-        document.getElementById('congrats-close')?.addEventListener('click', () => document.getElementById('congrats-modal')?.classList.add('hidden'));
-        document.getElementById('filters')?.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { currentFilter = e.target.dataset.filter; document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('filter-btn-active')); e.target.classList.add('filter-btn-active'); updateStatisticsAndRender(); } });
-        document.getElementById('month-filter')?.addEventListener('change', (e) => { currentMonthFilter = e.target.value; updateStatisticsAndRender(); });
-        document.getElementById('refresh-btn')?.addEventListener('click', () => listenForTasks());
-        
-        main();
-
+        fetchTasks();
     </script>
 </body>
 </html>
-
